@@ -6,4 +6,3 @@ out
 *.ipr
 *.iws
 .DS_Store
-gradle
