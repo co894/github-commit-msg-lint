@@ -1,0 +1,5 @@
+{
+  "name": "Commit Lint CO894",
+  "description": "An example app for CO894. This is a GitHub check for PRs that will lint commit messages.",
+  "image": "heroku/gradle"
+}
