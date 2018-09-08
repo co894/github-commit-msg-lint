@@ -33,7 +33,10 @@ public class Main {
             .env())
         .handlers(chain -> chain
             .get("Hello!", ctx -> ctx.render("Hello!"))
-            .get("web_hook", ctx -> ctx.render(handleGithubEvent(ctx))))
+            .path("web_hook", ctx -> ctx.
+                byMethod(m -> m
+                  .get(() -> ctx.render("Need to use POST"))
+                  .post(() -> ctx.render(handleGithubEvent(ctx))))))
     );
   }
 }
