@@ -54,7 +54,7 @@ public class SpellChecking {
 
     List<RepositoryCommit> commits = prService.getCommits(RepositoryId.create(owner, repo), prNumber);
     for (RepositoryCommit commit : commits) {
-      boolean isFine = checkSpelling(commit, tool, reportBuilder, owner + "/" + "repo", prNumber);
+      boolean isFine = checkSpelling(commit, tool, reportBuilder, owner + "/" + repo, prNumber);
       allFine = allFine && isFine;
     }
 
@@ -65,7 +65,7 @@ public class SpellChecking {
                                        JLanguageTool tool,
                                        StringBuilder builder,
                                        String repoId,
-                                       int prId) throws IOException {
+                                       int prNumber) throws IOException {
     String msg = repoCommit.getCommit().getMessage();
     List<RuleMatch> matches = tool.check(msg);
 
@@ -78,8 +78,7 @@ public class SpellChecking {
       builder.append("](https://github.com/");
       builder.append(repoId);
       builder.append("/pull/");
-      builder.append(repoId);
-      builder.append(prId);
+      builder.append(prNumber);
       builder.append("/commits/");
       builder.append(repoCommit.getSha());
       builder.append(")\n\n");
