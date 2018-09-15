@@ -40,7 +40,7 @@ public class GitHub {
   // TODO: make configurable
   private static final String APP_NAME = "Commit Lint CO894";
   private static final int APP_ID = 17223;
-  public static final String KEY_NAME = "commit-lint-co894.2018-09-08.private-key.pem";
+  public static final String KEY_NAME = "GITHUB_PRIVATE_KEY";
 
   private static final MessageFormat CREATE_CHECK_RUN_URL =
       new MessageFormat("https://api.github.com/repos/{0}/{1}/check-runs");
@@ -98,8 +98,7 @@ public class GitHub {
 
   public static PrivateKey readPrivateKey(String keyName)
       throws InvalidKeySpecException, NoSuchAlgorithmException, IOException {
-    File file = new File(keyName);
-    String privateKeyContent = new String(Files.readAllBytes(Paths.get(file.toURI())));
+    String privateKeyContent = System.getenv(keyName);
     privateKeyContent = privateKeyContent.split("-----")[2];
     privateKeyContent = privateKeyContent.replaceAll("\n", "");
 
@@ -113,7 +112,8 @@ public class GitHub {
     if (version != 0 && version != 1) {
       throw new IllegalArgumentException("wrong version for RSA private key");
     }
-    /** In fact only modulus and private exponent are in use. */
+
+    /* In fact only modulus and private exponent are in use. */
     BigInteger modulus = ((ASN1Integer) e.nextElement()).getValue();
     BigInteger publicExponent = ((ASN1Integer) e.nextElement()).getValue();
     BigInteger privateExponent = ((ASN1Integer) e.nextElement()).getValue();
