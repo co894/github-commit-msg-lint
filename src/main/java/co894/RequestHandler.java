@@ -1,6 +1,7 @@
 package co894;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ratpack.exec.Promise;
@@ -9,8 +10,6 @@ import ratpack.http.Headers;
 import ratpack.http.Request;
 import ratpack.http.client.HttpClient;
 import ratpack.jackson.Jackson;
-
-import java.io.IOException;
 
 public class RequestHandler {
   private static final Logger LOGGER = LoggerFactory.getLogger(RequestHandler.class);
@@ -42,19 +41,21 @@ public class RequestHandler {
   }
 
   private void handleCheckSuite(Context ctx) {
-    ctx.parse(Jackson.jsonNode()).then(jsonNode -> {
-      String action = jsonNode.get("action").textValue();
-      LOGGER.info("GitHub event action: " + action);
-      
-      switch (action) {
-        case "requested":
-        case "rerequested":
-          createCheckRun(ctx, jsonNode);
-          break;
-        default:
-          LOGGER.info("GitHub action unhandled: " + action);
-      }
-    });
+    ctx.parse(Jackson.jsonNode())
+        .then(
+            jsonNode -> {
+              String action = jsonNode.get("action").textValue();
+              LOGGER.info("GitHub event action: " + action);
+
+              switch (action) {
+                case "requested":
+                case "rerequested":
+                  createCheckRun(ctx, jsonNode);
+                  break;
+                default:
+                  LOGGER.info("GitHub action unhandled: " + action);
+              }
+            });
   }
 
   private void createCheckRun(Context ctx, JsonNode requestData) {
@@ -74,15 +75,19 @@ public class RequestHandler {
 
     HttpClient httpClient = ctx.get(HttpClient.class);
 
-    Promise<Integer> checkId = Promise.async(downstream -> {
-      github.indicateQueuedLinting(httpClient, owner, repoName, installationId, headSha, downstream);
-    });
+    Promise<Integer> checkId =
+        Promise.async(
+            downstream -> {
+              github.indicateQueuedLinting(
+                  httpClient, owner, repoName, installationId, headSha, downstream);
+            });
 
     StringBuilder builder = new StringBuilder();
 
     try {
       boolean allFine = spellChecking.createSpellingReport(owner, repoName, prNumber, builder);
-      github.reportLiningResults(httpClient, owner, repoName, installationId, allFine, builder, checkId);
+      github.reportLiningResults(
+          httpClient, owner, repoName, installationId, allFine, builder, checkId);
     } catch (IOException e) {
       LOGGER.error("Failed spell checking PR", e);
       github.reportLiningResults(httpClient, owner, repoName, installationId, false, null, checkId);
