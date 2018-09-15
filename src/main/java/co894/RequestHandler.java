@@ -45,6 +45,7 @@ public class RequestHandler {
     ctx.parse(Jackson.jsonNode())
         .then(
             jsonNode -> {
+              LOGGER.info("Request body: " + jsonNode.toString());
               String action = jsonNode.get("action").textValue();
               LOGGER.info("GitHub event action: " + action);
 
