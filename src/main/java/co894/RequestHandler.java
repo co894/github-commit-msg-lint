@@ -32,6 +32,7 @@ public class RequestHandler {
     switch (event) {
       case "check_suite":
         handleCheckSuite(ctx);
+        break;
       default:
         LOGGER.info("GitHub event type unknown: " + event);
     }
