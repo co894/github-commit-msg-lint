@@ -7,34 +7,28 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.DERInteger;
-import org.bouncycastle.openssl.PEMKeyPair;
-import org.bouncycastle.openssl.PEMParser;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-import org.bouncycastle.util.io.pem.PemReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ratpack.http.MutableHeaders;
+import ratpack.exec.Downstream;
+import ratpack.exec.Promise;
 import ratpack.http.client.HttpClient;
-import ratpack.jackson.Jackson;
+import ratpack.http.client.RequestSpec;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyFactory;
-import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.spec.*;
 import java.text.MessageFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 public class GitHub {
 
@@ -47,7 +41,11 @@ public class GitHub {
   private static final int APP_ID = 17223;
   public static final String KEY_NAME = "commit-lint-co894.2018-09-08.private-key.pem";
 
-  private static final MessageFormat CHECK_RUNS_URL = new MessageFormat("https://api.github.com/repos/{0}/{1}/check-runs");
+  private static final MessageFormat CREATE_CHECK_RUN_URL =
+      new MessageFormat("https://api.github.com/repos/{0}/{1}/check-runs");
+  private static final MessageFormat UPDATE_CHECK_RUN_URL =
+      new MessageFormat("https://api.github.com/repos/{0}/{1}/check-runs/{2}");
+
 
   private static final MessageFormat CREATE_ACCESS_URL =
       new MessageFormat("https://api.github.com/app/installations/{0}/access_tokens");
@@ -86,11 +84,18 @@ public class GitHub {
   /** App Installation Id -> access token. */
   private final HashMap<Integer, Token> accessTokens;
 
+  private final SimpleDateFormat dateFormat;
 
 
   public GitHub() {
     jsonWebTokens = new HashMap<>();
     accessTokens = new HashMap<>();
+    dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    dateFormat.setTimeZone(TimeZone.getTimeZone("Zulu"));
+  }
+
+  private String formatDate(Date date) {
+    return dateFormat.format(date) + "Z";
   }
 
   public static PrivateKey readPrivateKey(String keyName) throws InvalidKeySpecException, NoSuchAlgorithmException, IOException {
@@ -149,7 +154,11 @@ public class GitHub {
   }
 
   private String getCheckRunsUrl(String owner, String repoName) {
-    return CHECK_RUNS_URL.format(new Object[] {owner, repoName});
+    return CREATE_CHECK_RUN_URL.format(new Object[] {owner, repoName});
+  }
+
+  private String getUpdateCheckRunUrl(String owner, String repoName, int checkId) {
+    return UPDATE_CHECK_RUN_URL.format(new Object[] {owner, repoName, "" + checkId});
   }
 
   private String getCreateAccessTokenUrl(int installationId) {
@@ -208,17 +217,11 @@ public class GitHub {
     }
   }
 
-  public void indicateQueuedLinting(HttpClient httpClient, String owner,
-                                    String repoName, int installationId /*326373*/,
-                                    String headSha) {
+  public void indicateQueuedLinting(HttpClient httpClient, String owner, String repoName, int installationId, String headSha, Downstream<? super Integer> checkIdResolver) {
     String checkRunsUrl = getCheckRunsUrl(owner, repoName);
     withAccessToken(installationId, httpClient, accessToken -> {
       httpClient.post(URI.create(checkRunsUrl), req -> {
-        req.getHeaders()
-            .add("Accept", API_PREVIEW_MEDIA_TYPE)
-            .add("Authorization", "token " + accessToken)
-            .add("Content-Type", "application/json")
-            .add("User-Agent", APP_NAME);
+        addAuthorizationHeaders(req, accessToken);
 
         ObjectNode requestNode = MAPPER.createObjectNode()
             .put("name", "commit-lint")
@@ -231,12 +234,77 @@ public class GitHub {
 
         req.getBody().text(requestJson);
       })
-          .onError(t -> LOGGER.error(t.toString()))
+          .onError(t -> {
+            LOGGER.error("HTTP Request to create check run failed.", t);
+            checkIdResolver.error(t);
+          })
           .then(res -> {
+            String body = res.getBody().getText();
+
+            JsonNode node = MAPPER.reader().readTree(body);
+            int checkId = node.get("id").asInt();
+            checkIdResolver.success(checkId);
+
             LOGGER.info("Http request to " + checkRunsUrl + "\nStatus: " + res.getStatusCode() +
                 "\nHeaders: " + res.getHeaders().getNettyHeaders().toString() +
-                "\nFull body:\n\n" + res.getBody().getText());
+                "\nFull body:\n\n" + body);
+
           });
+    });
+  }
+
+  private void addAuthorizationHeaders(RequestSpec req, String accessToken) {
+    req.getHeaders()
+        .add("Accept", API_PREVIEW_MEDIA_TYPE)
+        .add("Authorization", "token " + accessToken)
+        .add("Content-Type", "application/json")
+        .add("User-Agent", APP_NAME);
+  }
+
+  public void reportLiningResults(HttpClient httpClient, String owner,
+      String repoName, int installationId, boolean allFine,
+      StringBuilder builder, Promise<Integer> checkId) {
+    withAccessToken(installationId, httpClient, accessToken -> {
+      checkId.then((Integer id) -> {
+        String url = getUpdateCheckRunUrl(owner, repoName, id);
+        httpClient.request(URI.create(url),
+            action -> {
+              action.patch();
+              addAuthorizationHeaders(action, accessToken);
+
+              Date completion = new Date();
+              String conclusion = allFine ? "success" : "neutral";
+
+              ObjectNode requestNode = MAPPER.createObjectNode()
+                  .put("name", "commit-lint")
+                  .put("status", "completed")
+                  .put("completed_at", formatDate(completion))
+                  .put("conclusion", conclusion);
+
+              if (!allFine) {
+                ObjectNode outputNode = MAPPER.createObjectNode()
+                    .put("title", "Found issues in commit messages")
+                    .put("summary", "Found spelling issues")
+                    .put("text", builder.toString());
+
+                requestNode.set("output", outputNode);
+              }
+
+              String requestJson = requestNode.toString();
+              LOGGER.info("Sending PATCH to " + url + "\nBody:\n" + requestJson);
+              action.getBody().text(requestJson);
+            })
+        .onError(t -> LOGGER.error("HTTP Request to update check run failed.", t))
+        .then(res -> {
+          String body = res.getBody().getText();
+
+          JsonNode node = MAPPER.reader().readTree(body);
+
+          LOGGER.info("Http request to " + url + "\nStatus: " + res.getStatusCode() +
+              "\nHeaders: " + res.getHeaders().getNettyHeaders().toString() +
+              "\nFull body:\n\n" + body);
+        });
+      });
     });
   }
 }

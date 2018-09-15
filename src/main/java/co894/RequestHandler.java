@@ -3,19 +3,24 @@ package co894;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ratpack.exec.Promise;
 import ratpack.handling.Context;
 import ratpack.http.Headers;
 import ratpack.http.Request;
 import ratpack.http.client.HttpClient;
 import ratpack.jackson.Jackson;
 
+import java.io.IOException;
+
 public class RequestHandler {
   private static final Logger LOGGER = LoggerFactory.getLogger(RequestHandler.class);
 
   private final GitHub github;
+  private final SpellChecking spellChecking;
 
   public RequestHandler() {
     this.github = new GitHub();
+    this.spellChecking = new SpellChecking();
   }
 
   public void handleRequest(Context ctx) {
@@ -55,6 +60,8 @@ public class RequestHandler {
   private void createCheckRun(Context ctx, JsonNode requestData) {
     JsonNode checkSuite = requestData.get("check_suite");
     String headSha = checkSuite.get("head_sha").textValue();
+    JsonNode firstPr = checkSuite.get("pull_requests").get(0);
+    int prNumber = firstPr.get("number").asInt();
 
     JsonNode repository = requestData.get("repository");
     JsonNode repoOwner = repository.get("owner");
@@ -66,6 +73,19 @@ public class RequestHandler {
     int installationId = installation.get("id").asInt();
 
     HttpClient httpClient = ctx.get(HttpClient.class);
-    github.indicateQueuedLinting(httpClient, owner, repoName, installationId, headSha);
+
+    Promise<Integer> checkId = Promise.async(downstream -> {
+      github.indicateQueuedLinting(httpClient, owner, repoName, installationId, headSha, downstream);
+    });
+
+    StringBuilder builder = new StringBuilder();
+
+    try {
+      boolean allFine = spellChecking.createSpellingReport(owner, repoName, prNumber, builder);
+      github.reportLiningResults(httpClient, owner, repoName, installationId, allFine, builder, checkId);
+    } catch (IOException e) {
+      LOGGER.error("Failed spell checking PR", e);
+      github.reportLiningResults(httpClient, owner, repoName, installationId, false, null, checkId);
+    }
   }
 }
