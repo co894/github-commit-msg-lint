@@ -1,6 +1,7 @@
 plugins {
   id 'java'
   id 'io.ratpack.ratpack-java' version '1.5.4'
+  id 'com.github.sherter.google-java-format' version '0.7.1'
 }
 
 group 'co894'
