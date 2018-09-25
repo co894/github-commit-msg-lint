@@ -63,7 +63,14 @@ public class RequestHandler {
   private void createCheckRun(Context ctx, JsonNode requestData) {
     JsonNode checkSuite = requestData.get("check_suite");
     String headSha = checkSuite.get("head_sha").textValue();
-    JsonNode firstPr = checkSuite.get("pull_requests").get(0);
+    JsonNode prArray = checkSuite.get("pull_requests");
+
+    if (!prArray.has(0)) {
+      LOGGER.info("All PRs closed for this check suite, won't rerun");
+      return;
+    }
+
+    JsonNode firstPr = prArray.get(0);
     int prNumber = firstPr.get("number").asInt();
 
     JsonNode repository = requestData.get("repository");
