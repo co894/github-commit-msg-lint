@@ -5,7 +5,7 @@ import ratpack.server.RatpackServer;
 
 public class Main {
 
-  public static void main(String... args) throws Exception {
+  public static void main(final String... args) throws Exception {
     RequestHandler handler = new RequestHandler();
 
     RatpackServer.start(
@@ -14,7 +14,9 @@ public class Main {
                 .handlers(
                     chain ->
                         chain
-                            .get("Hello!", ctx -> ctx.render("Hello!"))
+                            .get("hello", ctx -> ctx.render(handler.getHello()))
+                            .get("Hello", ctx -> ctx.render(handler.getHello()))
+                            .get("Hello!", ctx -> ctx.render(handler.getHello()))
                             .path(
                                 "web_hook",
                                 ctx ->

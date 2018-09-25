@@ -100,7 +100,7 @@ public class GitHub {
     dateFormat.setTimeZone(TimeZone.getTimeZone("Zulu"));
   }
 
-  private String formatDate(final Date date) {
+  public String formatDate(final Date date) {
     return dateFormat.format(date) + "Z";
   }
 
