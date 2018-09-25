@@ -1,9 +1,13 @@
 package co894;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
+import java.util.Date;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
 import ratpack.exec.Promise;
 import ratpack.handling.Context;
 import ratpack.http.Headers;
@@ -22,7 +26,7 @@ public class RequestHandler {
     this.spellChecking = new SpellChecking();
   }
 
-  public void handleRequest(Context ctx) {
+  public void handleRequest(final Context ctx) {
     Request rq = ctx.getRequest();
     Headers headers = rq.getHeaders();
 
@@ -41,7 +45,11 @@ public class RequestHandler {
     rq.getBody().close(() -> {});
   }
 
-  private void handleCheckSuite(Context ctx) {
+  public String getHello() {
+    return "Hello! It is currently " + github.formatDate(new Date());
+  }
+
+  private void handleCheckSuite(final Context ctx) {
     ctx.parse(Jackson.jsonNode())
         .then(
             jsonNode -> {
@@ -60,7 +68,7 @@ public class RequestHandler {
             });
   }
 
-  private void createCheckRun(Context ctx, JsonNode requestData) {
+  private void createCheckRun(final Context ctx, final JsonNode requestData) {
     JsonNode checkSuite = requestData.get("check_suite");
     String headSha = checkSuite.get("head_sha").textValue();
     JsonNode prArray = checkSuite.get("pull_requests");

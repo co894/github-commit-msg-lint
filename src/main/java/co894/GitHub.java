@@ -1,29 +1,37 @@
 package co894;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.spec.*;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.RSAPrivateKeySpec;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Base64;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Objects;
+import java.util.TimeZone;
 import java.util.function.Consumer;
+
 import javax.xml.bind.DatatypeConverter;
+
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import ratpack.exec.Downstream;
 import ratpack.exec.Promise;
 import ratpack.http.client.HttpClient;
@@ -58,13 +66,13 @@ public class GitHub {
     public final String token;
     public final Date expiration;
 
-    Token(String token, Date expiration) {
+    Token(final String token, final Date expiration) {
       this.token = token;
       this.expiration = expiration;
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       Token that = (Token) o;
@@ -92,11 +100,11 @@ public class GitHub {
     dateFormat.setTimeZone(TimeZone.getTimeZone("Zulu"));
   }
 
-  private String formatDate(Date date) {
+  public String formatDate(final Date date) {
     return dateFormat.format(date) + "Z";
   }
 
-  public static PrivateKey readPrivateKey(String keyName)
+  public static PrivateKey readPrivateKey(final String keyName)
       throws InvalidKeySpecException, NoSuchAlgorithmException, IOException {
     String privateKeyContent = System.getenv(keyName);
     privateKeyContent = privateKeyContent.split("-----")[2];
@@ -129,14 +137,14 @@ public class GitHub {
     return pk;
   }
 
-  private static Date addMinutes(Date date, int amount) {
+  private static Date addMinutes(final Date date, final int amount) {
     Calendar cal = Calendar.getInstance();
     cal.setTime(date);
     cal.add(Calendar.MINUTE, amount);
     return cal.getTime();
   }
 
-  private Token determineJsonWebToken(int appId, PrivateKey key) {
+  private Token determineJsonWebToken(final int appId, final PrivateKey key) {
     Date now = new Date();
     Date inTenMinutes = addMinutes(now, JSON_WEB_TOKEN_EXPIRATION_MINUTES);
 
@@ -150,19 +158,20 @@ public class GitHub {
     return new Token(jsonWebToken, inTenMinutes);
   }
 
-  private String getCheckRunsUrl(String owner, String repoName) {
+  private String getCheckRunsUrl(final String owner, final String repoName) {
     return CREATE_CHECK_RUN_URL.format(new Object[] {owner, repoName});
   }
 
-  private String getUpdateCheckRunUrl(String owner, String repoName, int checkId) {
+  private String getUpdateCheckRunUrl(
+      final String owner, final String repoName, final int checkId) {
     return UPDATE_CHECK_RUN_URL.format(new Object[] {owner, repoName, "" + checkId});
   }
 
-  private String getCreateAccessTokenUrl(int installationId) {
+  private String getCreateAccessTokenUrl(final int installationId) {
     return CREATE_ACCESS_URL.format(new Object[] {"" + installationId});
   }
 
-  private void withJsonWebToken(int installationId, Consumer<String> fn) {
+  private void withJsonWebToken(final int installationId, final Consumer<String> fn) {
     Token token = jsonWebTokens.get(installationId);
     Date now = new Date();
     if (token == null || token.expiration.before(addMinutes(now, 1))) {
@@ -179,7 +188,8 @@ public class GitHub {
     fn.accept(token.token);
   }
 
-  private void createAccessToken(int installationId, HttpClient httpClient, Consumer<String> fn) {
+  private void createAccessToken(
+      final int installationId, final HttpClient httpClient, final Consumer<String> fn) {
     String createAccessTokenUrl = getCreateAccessTokenUrl(installationId);
     withJsonWebToken(
         installationId,
@@ -219,7 +229,8 @@ public class GitHub {
         });
   }
 
-  private void withAccessToken(int installationId, HttpClient httpClient, Consumer<String> fn) {
+  private void withAccessToken(
+      final int installationId, final HttpClient httpClient, final Consumer<String> fn) {
     Token token = accessTokens.get(installationId);
     Date now = new Date();
     if (token == null || token.expiration.before(addMinutes(now, 1))) {
@@ -230,12 +241,12 @@ public class GitHub {
   }
 
   public void indicateQueuedLinting(
-      HttpClient httpClient,
-      String owner,
-      String repoName,
-      int installationId,
-      String headSha,
-      Downstream<? super Integer> checkIdResolver) {
+      final HttpClient httpClient,
+      final String owner,
+      final String repoName,
+      final int installationId,
+      final String headSha,
+      final Downstream<? super Integer> checkIdResolver) {
     String checkRunsUrl = getCheckRunsUrl(owner, repoName);
     withAccessToken(
         installationId,
@@ -286,7 +297,7 @@ public class GitHub {
         });
   }
 
-  private void addAuthorizationHeaders(RequestSpec req, String accessToken) {
+  private void addAuthorizationHeaders(final RequestSpec req, final String accessToken) {
     req.getHeaders()
         .add("Accept", API_PREVIEW_MEDIA_TYPE)
         .add("Authorization", "token " + accessToken)
@@ -295,19 +306,19 @@ public class GitHub {
   }
 
   public void reportLiningResults(
-      HttpClient httpClient,
-      String owner,
-      String repoName,
-      int installationId,
-      boolean allFine,
-      StringBuilder builder,
-      Promise<Integer> checkId) {
+      final HttpClient httpClient,
+      final String owner,
+      final String repoName,
+      final int installationId,
+      final boolean allFine,
+      final StringBuilder builder,
+      final Promise<Integer> checkId) {
     withAccessToken(
         installationId,
         httpClient,
         accessToken -> {
           checkId.then(
-              (Integer id) -> {
+              (final Integer id) -> {
                 String url = getUpdateCheckRunUrl(owner, repoName, id);
                 httpClient
                     .request(
