@@ -19,14 +19,7 @@ public class SpellChecking {
     this.prService = new PullRequestService();
   }
 
-  public static void main(String... args) throws IOException {
-    String str =
-        "Cloning into 'languagetool-wrapper-demo-parent'...\n"
-            + "remote: Counting objects: 29, done.\n"
-            + "remote: Compressing objects: 100% (12/12), done.\n"
-            + "remote: Total 29 (delta 4), reused 29 (delta 4), pack-reused 0\n"
-            + "Unpacking objects: 100% (29/29), done.";
-
+  public static void main(final String... args) throws IOException {
     JLanguageTool tool = new JLanguageTool(new AmericanEnglish());
 
     StringBuilder builder = new StringBuilder();
@@ -49,7 +42,8 @@ public class SpellChecking {
   }
 
   public boolean createSpellingReport(
-      String owner, String repo, int prNumber, StringBuilder reportBuilder) throws IOException {
+      final String owner, final String repo, final int prNumber, final StringBuilder reportBuilder)
+      throws IOException {
     boolean allFine = true;
 
     List<RepositoryCommit> commits =
@@ -63,11 +57,11 @@ public class SpellChecking {
   }
 
   private static boolean checkSpelling(
-      RepositoryCommit repoCommit,
-      JLanguageTool tool,
-      StringBuilder builder,
-      String repoId,
-      int prNumber)
+      final RepositoryCommit repoCommit,
+      final JLanguageTool tool,
+      final StringBuilder builder,
+      final String repoId,
+      final int prNumber)
       throws IOException {
     String msg = repoCommit.getCommit().getMessage();
     List<RuleMatch> matches = tool.check(msg);

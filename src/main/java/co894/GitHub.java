@@ -1,5 +1,10 @@
 package co894;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.net.URI;
@@ -18,20 +23,11 @@ import java.util.HashMap;
 import java.util.Objects;
 import java.util.TimeZone;
 import java.util.function.Consumer;
-
 import javax.xml.bind.DatatypeConverter;
-
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import ratpack.exec.Downstream;
 import ratpack.exec.Promise;
 import ratpack.http.client.HttpClient;
@@ -104,9 +100,8 @@ public class GitHub {
     return dateFormat.format(date) + "Z";
   }
 
-  public static PrivateKey readPrivateKey(final String keyName)
+  public static PrivateKey readPrivateKey(String privateKeyContent)
       throws InvalidKeySpecException, NoSuchAlgorithmException, IOException {
-    String privateKeyContent = System.getenv(keyName);
     privateKeyContent = privateKeyContent.split("-----")[2];
     privateKeyContent = privateKeyContent.replaceAll("\n", "");
 
@@ -176,7 +171,7 @@ public class GitHub {
     Date now = new Date();
     if (token == null || token.expiration.before(addMinutes(now, 1))) {
       try {
-        PrivateKey key = readPrivateKey(KEY_NAME);
+        PrivateKey key = readPrivateKey(System.getenv(KEY_NAME));
         token = determineJsonWebToken(APP_ID, key);
         jsonWebTokens.put(installationId, token);
       } catch (InvalidKeySpecException | NoSuchAlgorithmException | IOException e) {
