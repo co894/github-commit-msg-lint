@@ -1,4 +1,4 @@
-// Authors: CO894
+// Authors: Julien & Stefan
 plugins {
   id 'java'
   id 'io.ratpack.ratpack-java' version '1.5.4'
