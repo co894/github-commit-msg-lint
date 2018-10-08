@@ -19,29 +19,6 @@ public class SpellChecking {
     this.prService = new PullRequestService();
   }
 
-  public static void main(final String... args) throws IOException {
-    JLanguageTool tool = new JLanguageTool(new AmericanEnglish());
-
-    StringBuilder builder = new StringBuilder();
-
-    // experiment with Spell Check app repo
-    String repoId = "co894/github-commit-msg-lint";
-    int prId = 3;
-    PullRequestService prService = new PullRequestService();
-
-    boolean allFine = true;
-
-    System.out.println("\n## Request Commits\n");
-    List<RepositoryCommit> commits = prService.getCommits(RepositoryId.createFromId(repoId), prId);
-    for (RepositoryCommit commit : commits) {
-      boolean isFine = checkSpelling(commit, tool, builder, repoId, prId);
-      allFine = allFine && isFine;
-    }
-
-    String result = builder.toString();
-    System.out.println(result);
-  }
-
   public boolean createSpellingReport(
       final String owner, final String repo, final int prNumber, final StringBuilder reportBuilder)
       throws IOException {
