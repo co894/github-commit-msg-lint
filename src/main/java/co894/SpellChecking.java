@@ -24,8 +24,9 @@ public class SpellChecking {
 
     StringBuilder builder = new StringBuilder();
 
-    String repoId = "smarr/SOMns";
-    int prId = 265;
+    // experiment with Spell Check app repo
+    String repoId = "co894/github-commit-msg-lint";
+    int prId = 3;
     PullRequestService prService = new PullRequestService();
 
     boolean allFine = true;
