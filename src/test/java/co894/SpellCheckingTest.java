@@ -3,6 +3,7 @@ package co894;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.egit.github.core.RepositoryCommit;
@@ -46,13 +47,29 @@ public class SpellCheckingTest {
 		System.out.println(matches.toString());
 		assertEquals(0, matches.size());
 	}
+	
+	private String getMatchedStringInMessage(RuleMatch match, String msg) {
+		return msg.substring(match.getFromPos(), match.getToPos());
+	}
 
 	private String getCommitMessages(List<RepositoryCommit> commits) {
-		return null;
+		String result = "";
+		for (RepositoryCommit c : commits) {
+			result += c.getCommit().getMessage() + "\n";
+		}
+		
+		return result;
 	}
 	
 	private String[] getNameParts(List<RepositoryCommit> commits) {
-		return null;
+		ArrayList<String> nameParts = new ArrayList<>();
+		for (RepositoryCommit c : commits) {
+			String[] parts = c.getCommit().getAuthor().getName().split(" ");
+			for (String part : parts) {
+				nameParts.add(part);
+			}
+		}
+		return nameParts.toArray(new String[0]);
 	}
 	
 	@Test
@@ -73,12 +90,25 @@ public class SpellCheckingTest {
 
 		JLanguageTool tool = new JLanguageTool(new AmericanEnglish());
 		List<RuleMatch> matches = tool.check(msg);
+		List<RuleMatch> filtered = new ArrayList<>();
 
 		// ignore the name from misspelling
 
-		// getMatchedStringInMessage(match, msg);
+		for (RuleMatch m : matches) {
+			String match = getMatchedStringInMessage(m, msg);
+			boolean isName = false;
+			for (String part : nameParts) {
+				if (part.equals(match)) {
+					isName = true;
+				}
+			}
+			
+			if (!isName) {
+				filtered.add(m);
+			}
+		}
 
-		assertEquals(0, matches.size());
+		assertEquals(0, filtered.size());
 	}
 
 }
