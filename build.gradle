@@ -2,7 +2,7 @@
 plugins {
   id 'java'
   id 'io.ratpack.ratpack-java' version '1.5.4'
-  id 'com.github.sherter.google-java-format' version '0.7.1'
+  id 'com.github.sherter.google-java-format' version '0.8'
 }
 
 group 'co894'
@@ -28,7 +28,7 @@ dependencies {
   runtime 'io.jsonwebtoken:jjwt-impl:0.10.5'
   runtime 'io.jsonwebtoken:jjwt-jackson:0.10.5'
   runtime 'org.slf4j:slf4j-simple:1.7.25'
-  
+
   testCompile 'org.junit.jupiter:junit-jupiter-api:5.3.1'
   testRuntime 'org.junit.jupiter:junit-jupiter-engine:5.3.1'
 }
